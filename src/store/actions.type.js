@@ -1,4 +1,3 @@
 export const GET_ORDERS = 'GET_ORDERS'
-export const LOGIN = 'LOGIN'
-export const LOGOUT = 'LOGOUT'
-export const INIT_STORE = 'INIT_STORE'
+export const SHOW_EXECUTION = 'SHOW_EXECUTION'
+export const HIDE_EXECUTION = 'HIDE_EXECUTION'

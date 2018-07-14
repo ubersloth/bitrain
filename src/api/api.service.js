@@ -1,7 +1,6 @@
 import Vue from 'vue'
 import axios from 'axios'
 import VueAxios from 'vue-axios'
-import { LOGOUT } from '../store/actions.type'
 
 const ApiService = {
   init (store) {
@@ -12,9 +11,6 @@ const ApiService = {
 
   errorHandler (error) {
     console.log(`ApiService ${error}`)
-    if (error && error.response && error.response.status === 401) {
-      this.$store.dispatch(LOGOUT)
-    }
   },
 
   query (resource, params) {

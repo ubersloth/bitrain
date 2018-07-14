@@ -1,3 +1,5 @@
+const BUY = 'buy'
+
 const fields = {
   type: 'type',
   time: 'time',
@@ -5,4 +7,4 @@ const fields = {
   price: 'price'
 }
 
-export { fields }
+export { fields, BUY }

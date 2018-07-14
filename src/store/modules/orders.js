@@ -1,7 +1,7 @@
-import { GET_ORDERS } from '@/store/actions.type'
-import { RECEIVE_ORDERS } from '@/store/mutations.type'
-import { capitalize } from '../../shared/tools'
+import { GET_ORDERS, SHOW_EXECUTION, HIDE_EXECUTION } from '@/store/actions.type'
+import { RECEIVE_ORDERS, DISPLAY_EXECUTION, DISMISS_EXECUTION } from '@/store/mutations.type'
 import { OrdersService } from '@/api/api.service'
+import { BUY } from '@/shared/trading'
 import Heap from 'heap'
 
 const state = {
@@ -9,6 +9,8 @@ const state = {
   sells: new Heap((a, b) => a.price - b.price),
   executions: [],
   top: 0,
+  historyDialog: false,
+  historyItem: undefined,
   loaded: false
 }
 
@@ -20,8 +22,16 @@ const actions = {
         setTimeout(dispatch.bind(undefined, GET_ORDERS), 1500)
       }
     })
+  },
+  [SHOW_EXECUTION] ({ commit }, payload) {
+    commit(DISPLAY_EXECUTION, payload)
+  },
+  [HIDE_EXECUTION] ({ commit }) {
+    commit(DISMISS_EXECUTION)
   }
 }
+
+let execId = 0
 
 const mutations = {
   [RECEIVE_ORDERS] (state, orders) {
@@ -29,10 +39,10 @@ const mutations = {
     let sellHeap = state.sells
 
     for (let order of orders) {
-      if (order.type === 'buy') {
-        buyHeap.push(order)
+      if (order.type === BUY) {
+        buyHeap.push({ ...order, time: new Date() })
       } else {
-        sellHeap.push(order)
+        sellHeap.push({ ...order, time: new Date() })
       }
     }
 
@@ -42,8 +52,8 @@ const mutations = {
       let quantity = Math.min(buyOrder.quantity, sellOrder.quantity)
       let price = (buyOrder.price + sellOrder.price) / 2
 
-      let buyCopy = { ...buyOrder }
-      let sellCopy = { ...sellOrder }
+      let buyCopy = { ...buyOrder, originalQty: buyOrder.quantity }
+      let sellCopy = { ...sellOrder, originalQty: sellOrder.quantity }
 
       if (quantity < buyOrder.quantity) {
         buyOrder.quantity -= quantity
@@ -53,22 +63,29 @@ const mutations = {
         sellHeap.push(sellOrder)
       }
 
-      state.executions.push({ quantity: quantity, price: price, time: new Date().toLocaleString(), buyOrder: buyCopy, sellOrder: sellCopy })
+      state.executions.push({ id: execId++, quantity: quantity, price: price, time: new Date(), buyOrder: buyCopy, sellOrder: sellCopy })
     }
 
     state.executions = state.executions.slice(-500)
 
     state.top += orders.length
     state.loaded = true
+  },
+  [DISPLAY_EXECUTION] (state, item) {
+    state.historyDialog = true
+    state.historyItem = item
+  },
+  [DISMISS_EXECUTION] (state) {
+    state.historyDialog = false
   }
 }
 
 const getters = {
   getBuys (state) {
-    return state.buys.nodes.slice(0, 500).map(order => [{ ...order, type: capitalize(order.type) }][0])
+    return state.buys.nodes.slice(0, 500)
   },
   getSells (state) {
-    return state.sells.nodes.slice(0, 500).map(order => [{ ...order, type: capitalize(order.type) }][0])
+    return state.sells.nodes.slice(0, 500)
   }
 }
 
