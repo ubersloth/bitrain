@@ -2,11 +2,11 @@ import { GET_ORDERS, SHOW_EXECUTION, HIDE_EXECUTION } from '@/store/actions.type
 import { RECEIVE_ORDERS, DISPLAY_EXECUTION, DISMISS_EXECUTION } from '@/store/mutations.type'
 import { OrdersService } from '@/api/api.service'
 import { BUY } from '@/shared/trading'
-import Heap from 'heap'
+import SortedArray from 'collections/sorted-array'
 
 const state = {
-  buys: new Heap((a, b) => b.price - a.price),
-  sells: new Heap((a, b) => a.price - b.price),
+  buys: [],
+  sells: [],
   executions: [],
   top: 0,
   historyDialog: false,
@@ -14,9 +14,12 @@ const state = {
   loaded: false
 }
 
+let fetchSize = 200
+
 const actions = {
   [GET_ORDERS] ({ commit, dispatch, state }) {
-    OrdersService.query({ start: state.top, size: 5 }).then(response => {
+    OrdersService.query({ start: state.top, size: fetchSize }).then(response => {
+      fetchSize = 10
       if (response && response.data) {
         commit(RECEIVE_ORDERS, response.data)
         setTimeout(dispatch.bind(undefined, GET_ORDERS), 1500)
@@ -32,42 +35,48 @@ const actions = {
 }
 
 let execId = 0
+const compareByPrice = (a, b) => a.price === b.price
+const priceAscending = (a, b) => a.price - b.price
+const priceDescending = (a, b) => b.price - a.price
 
 const mutations = {
   [RECEIVE_ORDERS] (state, orders) {
-    let buyHeap = state.buys
-    let sellHeap = state.sells
+    let buySorted = new SortedArray(state.buys.slice(0), compareByPrice, priceAscending)
+    let sellSorted = new SortedArray(state.sells.slice(0), compareByPrice, priceDescending)
 
     for (let order of orders) {
-      if (order.type === BUY) {
-        buyHeap.push({ ...order, time: new Date() })
-      } else {
-        sellHeap.push({ ...order, time: new Date() })
-      }
+      let array = order.type === BUY ? buySorted : sellSorted
+      array.push({ ...order, time: new Date() })
     }
 
     let mutation = state.executions.slice(-500)
 
-    while (buyHeap.top() && sellHeap.top() && buyHeap.top().price >= sellHeap.top().price) {
-      let buyOrder = buyHeap.pop()
-      let sellOrder = sellHeap.pop()
+    while (buySorted.length && sellSorted.length && buySorted.max().price >= sellSorted.max().price) {
+      let buyOrder = buySorted.pop()
+      let sellOrder = sellSorted.pop()
 
-      let quantity = Math.min(buyOrder.quantity, sellOrder.quantity)
-      let price = (buyOrder.price + sellOrder.price) / 2
-      let buyCopy = { ...buyOrder, originalQty: buyOrder.quantity }
-      let sellCopy = { ...sellOrder, originalQty: sellOrder.quantity }
+      let execution = {
+        id: execId++,
+        quantity: Math.min(buyOrder.quantity, sellOrder.quantity),
+        price: (buyOrder.price + sellOrder.price) / 2,
+        time: new Date(),
+        buyOrder: { ...buyOrder, originalQty: buyOrder.quantity },
+        sellOrder: { ...sellOrder, originalQty: sellOrder.quantity }
+      }
 
-      mutation.push({ id: execId++, quantity: quantity, price: price, time: new Date(), buyOrder: buyCopy, sellOrder: sellCopy })
+      mutation.push(execution)
 
-      if (quantity < buyOrder.quantity) {
-        buyHeap.push({ ...buyOrder, quantity: buyOrder.quantity - quantity, time: new Date() })
-      } else if (quantity < sellOrder.quantity) {
-        sellHeap.push({ ...sellOrder, quantity: sellOrder.quantity - quantity, time: new Date() })
+      if (execution.quantity < buyOrder.quantity) {
+        buySorted.push({ ...buyOrder, quantity: buyOrder.quantity - execution.quantity, time: new Date() })
+      } else if (execution.quantity < sellOrder.quantity) {
+        sellSorted.push({ ...sellOrder, quantity: sellOrder.quantity - execution.quantity, time: new Date() })
       }
     }
 
     mutation = mutation.slice(-500)
     state.executions = mutation
+    state.buys = buySorted.array
+    state.sells = sellSorted.array
     state.top += orders.length
     state.loaded = true
   },
@@ -82,10 +91,10 @@ const mutations = {
 
 const getters = {
   getBuys (state) {
-    return state.buys.nodes.slice(0, 500)
+    return state.buys.slice(-500)
   },
   getSells (state) {
-    return state.sells.nodes.slice(0, 500)
+    return state.sells.slice(-500)
   }
 }
 
