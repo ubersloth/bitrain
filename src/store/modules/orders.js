@@ -46,28 +46,28 @@ const mutations = {
       }
     }
 
+    let mutation = state.executions.slice(-500)
+
     while (buyHeap.top() && sellHeap.top() && buyHeap.top().price >= sellHeap.top().price) {
       let buyOrder = buyHeap.pop()
       let sellOrder = sellHeap.pop()
+
       let quantity = Math.min(buyOrder.quantity, sellOrder.quantity)
       let price = (buyOrder.price + sellOrder.price) / 2
-
       let buyCopy = { ...buyOrder, originalQty: buyOrder.quantity }
       let sellCopy = { ...sellOrder, originalQty: sellOrder.quantity }
 
-      if (quantity < buyOrder.quantity) {
-        buyOrder.quantity -= quantity
-        buyHeap.push(buyOrder)
-      } else if (quantity < sellOrder.quantity) {
-        sellOrder.quantity -= quantity
-        sellHeap.push(sellOrder)
-      }
+      mutation.push({ id: execId++, quantity: quantity, price: price, time: new Date(), buyOrder: buyCopy, sellOrder: sellCopy })
 
-      state.executions.push({ id: execId++, quantity: quantity, price: price, time: new Date(), buyOrder: buyCopy, sellOrder: sellCopy })
+      if (quantity < buyOrder.quantity) {
+        buyHeap.push({ ...buyOrder, quantity: buyOrder.quantity - quantity, time: new Date() })
+      } else if (quantity < sellOrder.quantity) {
+        sellHeap.push({ ...sellOrder, quantity: sellOrder.quantity - quantity, time: new Date() })
+      }
     }
 
-    state.executions = state.executions.slice(-500)
-
+    mutation = mutation.slice(-500)
+    state.executions = mutation
     state.top += orders.length
     state.loaded = true
   },

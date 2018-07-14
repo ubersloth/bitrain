@@ -45,9 +45,6 @@ export default {
       ]
     }
   },
-  components: { TableRow },
-  created () {
-    console.log(this.$store.state.orders.loaded)
-  }
+  components: { TableRow }
 }
 </script>

@@ -13,7 +13,7 @@
 
 @keyframes highlight {
   0% {
-    background: beige; /* lovely yellow colour */
+    background: beige;
   }
   100% {
     background: none;
@@ -40,7 +40,6 @@ export default {
     item (i) {
       let me = this
       if (new Date() - i.time < 1000) {
-        this.previousId = i.id
         this.glow = false
         setTimeout(function () { me.glow = true }, 1)
       }
