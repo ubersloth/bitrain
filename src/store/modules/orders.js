@@ -2,7 +2,6 @@ import { GET_ORDERS, SHOW_EXECUTION, HIDE_EXECUTION } from '@/store/actions.type
 import { RECEIVE_ORDERS, DISPLAY_EXECUTION, DISMISS_EXECUTION } from '@/store/mutations.type'
 import { OrdersService } from '@/api/api.service'
 import { BUY } from '@/shared/trading'
-import SortedArray from 'collections/sorted-array'
 
 const state = {
   buys: [],
@@ -41,6 +40,8 @@ const priceDescending = (a, b) => b.price - a.price
 
 const mutations = {
   [RECEIVE_ORDERS] (state, orders) {
+    // Workwround, because collectionjs possibly pollutes the global namespace (causes issues with v-select render)
+    const SortedArray = require('collections/sorted-array')
     let buySorted = new SortedArray(state.buys.slice(0), compareByPrice, priceAscending)
     let sellSorted = new SortedArray(state.sells.slice(0), compareByPrice, priceDescending)
 
@@ -51,6 +52,7 @@ const mutations = {
 
     let mutation = state.executions.slice(-500)
 
+    // max() is a misleading name, it simply returns the last element
     while (buySorted.length && sellSorted.length && buySorted.max().price >= sellSorted.max().price) {
       let buyOrder = buySorted.pop()
       let sellOrder = sellSorted.pop()
